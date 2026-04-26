@@ -23,6 +23,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app.py" />
+    <Compile Include="prompts\domain_personas.py" />
+    <Compile Include="prompts\init.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="llm\" />
@@ -37,6 +39,13 @@
     <Content Include=".env" />
     <Content Include=".env.example" />
     <Content Include=".gitignore" />
+    <Content Include="prompts\critic.md" />
+    <Content Include="prompts\decompose.md" />
+    <Content Include="prompts\fallback_refusal.md" />
+    <Content Include="prompts\judge.md" />
+    <Content Include="prompts\producer_revise.md" />
+    <Content Include="prompts\router_classify.md" />
+    <Content Include="prompts\synthesize.md" />
     <Content Include="README.md" />
     <Content Include="requirments.txt" />
   </ItemGroup>

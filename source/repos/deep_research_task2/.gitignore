@@ -1,7 +1,11 @@
-.vs/
-*.suo
-*.user
+.env
 __pycache__/
 *.pyc
+*.pyo
 .venv/
-.env
+venv/
+*.egg-info/
+dist/
+.pytest_cache/
+*.log
+.vs/

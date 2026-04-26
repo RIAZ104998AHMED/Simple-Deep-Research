@@ -23,6 +23,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app.py" />
+    <Compile Include="llm\client.py" />
+    <Compile Include="llm\__init__.py" />
     <Compile Include="prompts\domain_personas.py" />
     <Compile Include="prompts\init.py" />
   </ItemGroup>

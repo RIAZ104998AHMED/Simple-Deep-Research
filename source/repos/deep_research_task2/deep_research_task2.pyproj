@@ -23,10 +23,20 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app.py" />
+    <Compile Include="eval\routing_eval_set.py" />
+    <Compile Include="eval\run_routing_eval.py" />
+    <Compile Include="examples\sample_question.py" />
+    <Compile Include="examples\__init__.py" />
     <Compile Include="llm\client.py" />
     <Compile Include="llm\__init__.py" />
+    <Compile Include="parallel\map_reduce.py" />
+    <Compile Include="parallel\__init__.py" />
     <Compile Include="prompts\domain_personas.py" />
     <Compile Include="prompts\init.py" />
+    <Compile Include="reflection\loop.py" />
+    <Compile Include="reflection\__init__.py" />
+    <Compile Include="router\supervisor.py" />
+    <Compile Include="router\_init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="llm\" />

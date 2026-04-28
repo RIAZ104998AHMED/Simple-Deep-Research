@@ -1,119 +1,104 @@
-﻿"""
-router/supervisor.py
-LLM-based domain supervisor.
-
-Two-pass approach:
-  Pass 1 — Guardrail: detects prompt injection, PII, disallowed content
-  Pass 2 — Domain classification: scientific / historical / financial /
-            general / fallback
-"""
-from __future__ import annotations
-
-import logging
+﻿import logging
 from dataclasses import dataclass
+from pathlib import Path
 
-from prompts import ROUTER_CLASSIFY, FALLBACK_REFUSAL
-from llm.client import chat_complete, parse_json, ROUTER_MODEL
+from llm.client import ROUTER_MODEL, chat_complete, parse_json
 
 logger = logging.getLogger(__name__)
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+PROMPT_DIR = BASE_DIR / "prompts"
+
+
+def read_prompt(filename: str) -> str:
+    path = PROMPT_DIR / filename
+
+    for encoding in ("cp1252", "utf-8", "utf-8-sig", "latin-1"):
+        try:
+            return path.read_text(encoding=encoding)
+        except UnicodeDecodeError:
+            continue
+
+    raise UnicodeDecodeError(
+        "unknown",
+        b"",
+        0,
+        1,
+        f"Could not decode prompt file: {path}",
+    )
+
+
+ROUTER_CLASSIFY = read_prompt("router_classify.md")
+FALLBACK_REFUSAL = read_prompt("fallback_refusal.md")
 
 VALID_DOMAINS = {"scientific", "historical", "financial", "general", "fallback"}
 
 
 @dataclass
 class RouterResult:
-    """Structured output from the domain supervisor."""
-    domain:              str
-    confidence:          float
+    domain: str
+    confidence: float
     guardrail_triggered: bool
-    guardrail_reason:    str | None
-    reasoning:           str
-    raw_question:        str
+    guardrail_reason: str | None
+    reasoning: str
+    raw_question: str
 
 
 async def classify(question: str) -> RouterResult:
-    """
-    Run the two-pass LLM supervisor and return a RouterResult.
-    Never raises — falls back to domain='fallback' on any parse error.
-    """
-    logger.info("[router] classifying: %.100r", question)
-
     messages = [
         {"role": "system", "content": ROUTER_CLASSIFY},
-        {"role": "user",   "content": question},
+        {"role": "user", "content": question},
     ]
 
-    raw = await chat_complete(
-        messages,
-        model=ROUTER_MODEL,
-        temperature=0.1,
-        max_tokens=300,
-        json_mode=True,
-    )
-    logger.debug("[router] raw_response=%s", raw)
-
     try:
-        parsed = parse_json(raw)
-    except ValueError as exc:
-        logger.warning("[router] JSON parse failed → fallback: %s", exc)
-        parsed = {
-            "domain": "fallback",
-            "confidence": 0.0,
-            "guardrail_triggered": False,
-            "guardrail_reason": f"Router returned malformed JSON: {exc}",
-            "reasoning": "Parse error — defaulted to fallback",
-        }
+        raw = await chat_complete(
+            messages=messages,
+            model=ROUTER_MODEL,
+            temperature=0.0,
+            timeout=30.0,
+        )
+        data = parse_json(raw)
+    except Exception as exc:
+        logger.exception("Router failed. Falling back safely.")
+        return RouterResult(
+            domain="fallback",
+            confidence=0.0,
+            guardrail_triggered=True,
+            guardrail_reason=f"Router parsing or API failure: {exc}",
+            reasoning="Router failed, so the system chose fallback.",
+            raw_question=question,
+        )
 
-    domain = str(parsed.get("domain", "fallback")).lower().strip()
+    domain = str(data.get("domain", "fallback")).lower().strip()
+
     if domain not in VALID_DOMAINS:
-        logger.warning("[router] unknown domain %r → remapping to fallback", domain)
         domain = "fallback"
+
+    confidence = float(data.get("confidence", 0.0))
+    confidence = max(0.0, min(1.0, confidence))
 
     result = RouterResult(
         domain=domain,
-        confidence=float(parsed.get("confidence", 0.0)),
-        guardrail_triggered=bool(parsed.get("guardrail_triggered", False)),
-        guardrail_reason=parsed.get("guardrail_reason"),
-        reasoning=str(parsed.get("reasoning", "")),
+        confidence=confidence,
+        guardrail_triggered=bool(data.get("guardrail_triggered", False)),
+        guardrail_reason=data.get("guardrail_reason"),
+        reasoning=str(data.get("reasoning", "")),
         raw_question=question,
     )
 
-    _print_result(result)
+    print(
+        f"[router] domain={result.domain} "
+        f"confidence={result.confidence:.2f} "
+        f"guardrail_triggered={result.guardrail_triggered}"
+    )
+
+    if result.guardrail_reason:
+        print(f"[router] guardrail_reason={result.guardrail_reason}")
+
     return result
 
 
-def _print_result(r: RouterResult) -> None:
-    if r.guardrail_triggered:
-        logger.warning(
-            "[router] ⚠️  GUARDRAIL TRIGGERED  domain=fallback  reason=%s",
-            r.guardrail_reason,
-        )
-    else:
-        logger.info(
-            "[router] ✅ domain=%-12s  confidence=%.2f  reasoning=%s",
-            r.domain, r.confidence, r.reasoning,
-        )
-
-
-async def get_fallback_response(result: RouterResult) -> str:
-    """
-    Generate a graceful, helpful refusal message for questions that hit
-    the fallback / guardrail path.
-    """
-    reason = result.guardrail_reason or "The question is ambiguous or out of scope."
-    messages = [
-        {"role": "system", "content": FALLBACK_REFUSAL},
-        {
-            "role": "user",
-            "content": (
-                f"Reason for rejection: {reason}\n\n"
-                f"Original question: {result.raw_question}"
-            ),
-        },
-    ]
-    return await chat_complete(
-        messages,
-        model=ROUTER_MODEL,
-        temperature=0.4,
-        max_tokens=200,
-    )
+def fallback_message(reason: str | None = None) -> str:
+    if reason:
+        return f"{FALLBACK_REFUSAL}\n\nReason: {reason}"
+    return FALLBACK_REFUSAL

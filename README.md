@@ -56,49 +56,7 @@ deep_research_task2/
     └── sample_questions.py        12 sample questions with domain labels
 ```
 
----
 
-## Setup
-
-```bash
-# 1. Clone / open the project
-cd deep_research_task2
-
-# 2. Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirments.txt
-
-# 4. Configure API keys
-cp .env.example .env
-# Open .env and set OPENROUTER_API_KEY
-# Get a free key at https://openrouter.ai/keys
-```
-
----
-
-## Usage
-
-```bash
-# Single question — full pipeline
-python app.py -q "What are the main bottlenecks of solid-state battery research?"
-
-# Run a specific sample question (1-based index)
-python app.py --demo --index 1
-
-# Run ALL sample questions
-python app.py --demo
-
-# Run routing accuracy evaluation (12 labeled questions)
-python app.py --eval
-
-# Interactive mode
-python app.py
-```
-
----
 
 ## Environment variables
 
@@ -272,43 +230,3 @@ rubber-stamping — the model is reluctant to find fault with its own output.
    occur (scores converge but no real improvement is happening).
 
 ---
-
-## Git workflow
-
-```bash
-# Initial setup
-git init
-git checkout -b develop
-
-git add .
-git commit -m "chore: initial project scaffold"
-
-# Feature branches (recommended)
-git checkout -b feature/routing
-# ... implement + test ...
-git checkout develop
-git merge --no-ff feature/routing -m "feat: LLM router with guardrail"
-
-git checkout -b feature/map-reduce
-# ... implement + test ...
-git checkout develop
-git merge --no-ff feature/map-reduce -m "feat: parallel map-reduce + best-of-N"
-
-git checkout -b feature/reflection
-# ... implement + test ...
-git checkout develop
-git merge --no-ff feature/reflection -m "feat: producer-critic reflection loop"
-
-git checkout -b feature/eval
-# ... run eval, paste results into README ...
-git checkout develop
-git merge --no-ff feature/eval -m "docs: routing accuracy eval results"
-
-# Final submission
-git checkout main
-git merge --no-ff develop -m "chore: final submission merge"
-
-# Push to GitHub
-git remote add origin https://github.com/<your-username>/deep_research_task2.git
-git push -u origin main develop
-```
